@@ -1,0 +1,69 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
+
+android {
+    compileSdkVersion 28
+
+
+    defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion 28
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+    }
+    sourceSets {
+        main {
+            jniLibs.srcDirs += ["src/main/JavaScriptCore/jni"]
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt"
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'androidx.appcompat:appcompat:1.0.2'
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.1'
+    androidTestImplementation 'androidx.test:runner:1.2.0'
+    implementation "androidx.core:core-ktx:1.0.2"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+}
+repositories {
+    mavenCentral()
+}
+
+task extractSo(type: Copy) {
+    println 'Extracting *.so file(s)....'
+    def jscTar = fileTree("$rootDir/node_modules/jsc-android/dist")
+    def jscAAR = jscTar.matching({ it.include "**/android-jsc/**/*.aar" }).singleFile
+    def soFiles = zipTree(jscAAR).matching({ it.include "**/*.so" })
+    def jsccpprtAAR = jscTar.matching({ it.include "**/android-jsc-cppruntime/**/*.aar" }).singleFile
+    def socpprtFiles = zipTree(jsccpprtAAR).matching({ it.include "**/*.so" })
+    def headerFiles = jscTar.matching({ it.include "**/include/*.h" })
+    copy {
+        from(soFiles)
+        from(socpprtFiles)
+        from(headerFiles)
+        filesMatching("**/*.h", { it.path = "include/JavaScriptCore/${it.name}" })
+        includeEmptyDirs(false)
+        into "${project.rootDir}/${project.name}/src/main/JavaScriptCore/"
+    }
+}
+
+tasks.withType(JavaCompile) {
+    compileTask -> compileTask.dependsOn(extractSo)
+}
