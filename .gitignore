@@ -30,3 +30,9 @@ proguard/
 
 # Android Studio captures folder
 captures/
+
+.idea
+node_modules
+package-lock.json
+
+*.iml
